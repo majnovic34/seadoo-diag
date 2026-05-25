@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="BRP Diag"/>
+<title>BRP Diagnostics</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#050A0F;--bg2:#0A1520;--bg3:#0F1E2E;--border:#1A3A5C;
+  --accent:#00C8FF;--accent2:#FF6B00;--green:#00FF88;--red:#FF2244;
+  --yellow:#FFD700;--text:#D0E8FF;--muted:#4A7A9B;--dim:#2A4A6B;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}
+#app{max-width:430px;margin:0 auto;min-height:100dvh;position:relative;overflow:hidden;}
+
+.header{padding:48px 20px 12px;background:linear-gradient(180deg,var(--bg2) 0%,transparent 100%);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.header-logo{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;}
+.header-title{font-size:22px;font-weight:700;color:var(--accent);letter-spacing:2px;text-transform:uppercase;line-height:1;}
+.header-sub{font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:2px;}
+.status-dot{width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}
+.status-dot.off{background:var(--red);box-shadow:0 0 8px var(--red);animation:none;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+.tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);}
+.tab{flex:1;padding:12px 4px;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.tab.aktivan{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-icon{font-size:16px;}
+
+.content{height:calc(100dvh - 140px);overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding-bottom:20px;}
+.content::-webkit-scrollbar{display:none;}
+.page{display:none;padding:16px;}
+.page.aktivan{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.page.aktivan{animation:fadeIn 0.25s ease;}
+
+/* DASHBOARD */
+.conn-banner{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;}
+.conn-info{font-size:13px;color:var(--muted);}
+.conn-info span{color:var(--accent);font-weight:700;}
+.conn-btn{background:var(--accent);color:var(--bg);border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;font-family:'Rajdhani',sans-serif;letter-spacing:1px;cursor:pointer;text-transform:uppercase;}
+.conn-btn.disconnect{background:var(--red);color:#fff;}
+.gauges-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.gauge-card{background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:14px;position:relative;overflow:hidden;}
+.gauge-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--g-color);box-shadow:0 0 12px var(--g-color);}
+.gauge-label{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
+.gauge-value{font-family:'Share Tech Mono',monospace;font-size:28px;font-weight:400;color:var(--g-color);line-height:1;}
+.gauge-unit{font-size:11px;color:var(--muted);margin-top:2px;}
+.gauge-bar{margin-top:10px;height:4px;background:var(--dim);border-radius:2px;overflow:hidden;}
+.gauge-bar-fill{height:100%;border-radius:2px;background:var(--g-color);box-shadow:0 0 8px var(--g-color);transition:width 0.5s ease;}
+.scan-line{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scan 3s linear infinite;pointer-events:none;}
+@keyframes scan{0%{top:0;}100%{top:100%;}}
+
+/* FAULT */
+.fault-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.fault-title{font-size:16px;font-weight:700;color:var(--text);letter-spacing:1px;text-transform:uppercase;}
+.fault-count{background:var(--red);color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;}
+.fault-count.ok{background:var(--green);color:var(--bg);}
+.fault-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;border-left:3px solid var(--f-color);}
+.fault-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.fault-code{font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--f-color);}
+.fault-sev{font-size:10px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:4px;text-transform:uppercase;}
+.fault-sev.visok{background:#FF224422;color:var(--red);border:1px solid var(--red);}
+.fault-sev.srednji{background:#FFD70022;color:var(--yellow);border:1px solid var(--yellow);}
+.fault-sev.info{background:#00C8FF22;color:var(--accent);border:1px solid var(--accent);}
+.fault-naziv{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.fault-opis{font-size:12px;color:var(--muted);line-height:1.4;}
+.fault-time{font-size:10px;color:var(--dim);margin-top:6px;font-family:'Share Tech Mono',monospace;}
+.no-faults{text-align:center;padding:50px 20px;color:var(--dim);}
+.no-faults-icon{font-size:48px;margin-bottom:12px;}
+
+/* GPS */
+.map-wrap{border-radius:14px;overflow:hidden;margin-bottom:12px;border:1px solid var(--border);position:relative;height:280px;}
+#google-map{width:100%;height:100%;}
+.map-overlay{position:absolute;top:12px;left:12px;background:#05080Fcc;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--accent);z-index:10;pointer-events:none;}
+.map-overlay div{margin-bottom:2px;}
+.trip-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;}
+.trip-stat{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px 10px;text-align:center;}
+.trip-stat-val{font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--accent2);line-height:1;}
+.trip-stat-lbl{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:4px;}
+
+/* GRAFOVI */
+.graph-card{background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;}
+.graph-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.graph-title-txt{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
+.graph-cur-val{font-family:'Share Tech Mono',monospace;font-size:22px;font-weight:400;line-height:1;}
+.graph-cur-unit{font-size:10px;color:var(--muted);text-align:right;margin-top:2px;}
+.graph-live{font-size:10px;color:var(--green);display:flex;align-items:center;gap:4px;}
+.graph-live::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 1s infinite;}
+.graph-canvas{width:100%;height:90px;display:block;}
+.graph-minmax{display:flex;justify-content:space-between;margin-top:4px;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div>
+      <div class="header-logo">BRP Diagnostics v1.0</div>
+      <div class="header-title">RXP-X 300</div>
+      <div class="header-sub">2022 · VIN: YDV04765K223</div>
+    </div>
+    <div class="status-dot off" id="status-dot"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab aktivan" onclick="promijeniTab('dashboard',this)"><span class="tab-icon">⚡</span>LIVE</button>
+    <button class="tab" onclick="promijeniTab('greske',this)"><span class="tab-icon">⚠️</span>DTC</button>
+    <button class="tab" onclick="promijeniTab('mapa',this)"><span class="tab-icon">🗺️</span>GPS</button>
+    <button class="tab" onclick="promijeniTab('grafovi',this)"><span class="tab-icon">📈</span>GRAF</button>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page aktivan" id="page-dashboard">
+      <div class="conn-banner">
+        <div class="conn-info">MPI-3 · <span id="conn-status-text">Nije spojeno</span></div>
+        <button class="conn-btn" id="conn-btn" onclick="toggleKonekcija()">SPOJI</button>
+      </div>
+      <div class="gauges-grid">
+        <div class="gauge-card" style="--g-color:#00C8FF;grid-column:span 2;">
+          <div class="scan-line"></div>
+          <div class="gauge-label">Motor — RPM</div>
+          <div class="gauge-value" id="val-rpm">--</div>
+          <div class="gauge-unit">okretaja/min · max 8500</div>
+          <div class="gauge-bar"><div class="gauge-bar-fill" id="bar-rpm" style="width:0%"></div></div>
+        </div>
+        <div class="gauge-card" style="--g-color:#FF6B00;">
+          <div class="gauge-label">Temp. motora</div>
+          <div class="gauge-value" id="val-temp">--</div>
+          <div class="gauge-unit">°C · max 105</div>
+          <div class="gauge-bar"><div class="gauge-bar-fill" id="bar-temp" style="width:0%"></div></div>
+        </div>
+        <div class="gauge-card" style="--g-color:#FFD700;">
+          <div class="gauge-label">Napon baterije</div>
+          <div class="gauge-value" id="val-volt">--</div>
+          <div class="gauge-unit">V · nominal 12.6</div>
+          <div class="gauge-bar"><div class="gauge-bar-fill" id="bar-volt" style="width:0%"></div></div>
+        </div>
+        <div class="gauge-card" style="--g-color:#00FF88;">
+          <div class="gauge-label">Brzina</div>
+          <div class="gauge-value" id="val-speed">--</div>
+          <div class="gauge-unit">km/h · max 130</div>
+          <div class="gauge-bar"><div class="gauge-bar-fill" id="bar-speed" style="width:0%"></div></div>
+        </div>
+        <div class="gauge-card" style="--g-color:#A78BFA;">
+          <div class="gauge-label">Pritisak goriva</div>
+          <div class="gauge-value" id="val-fuel">--</div>
+          <div class="gauge-unit">bar · nominal 3.5</div>
+          <div class="gauge-bar"><div class="gauge-bar-fill" id="bar-fuel" style="width:0%"></div></div>
+        </div>
+        <div class="gauge-card" style="--g-color:#00BFFF;">
+          <div class="gauge-label">Temp. vode (hlađenje)</div>
+          <div class="gauge-value" id="val-water">--</div>
+          <div class="gauge-unit">°C · max 40</div>
+          <div class="gauge-bar"><div class="gauge-bar-fill" id="bar-water" style="width:0%"></div></div>
+        </div>
+        <div class="gauge-card" style="--g-color:#FF9F43;">
+          <div class="gauge-label">Tlak ulja</div>
+          <div class="gauge-value" id="val-oil">--</div>
+          <div class="gauge-unit">bar · nominal 4.0</div>
+          <div class="gauge-bar"><div class="gauge-bar-fill" id="bar-oil" style="width:0%"></div></div>
+        </div>
+        <div class="gauge-card" style="--g-color:#FF2244;grid-column:span 2;">
+          <div class="gauge-label">Temp. ispušnih plinova (EMAS)</div>
+          <div class="gauge-value" id="val-exhaust">--</div>
+          <div class="gauge-unit">°C · max 650</div>
+          <div class="gauge-bar"><div class="gauge-bar-fill" id="bar-exhaust" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GREŠKE -->
+    <div class="page" id="page-greske">
+      <div class="fault-header">
+        <div class="fault-title">Fault kodovi</div>
+        <div class="fault-count" id="fault-count">3 DTC</div>
+      </div>
+      <div id="fault-lista"></div>
+    </div>
+
+    <!-- MAPA -->
+    <div class="page" id="page-mapa">
+      <div class="map-wrap">
+        <div id="google-map"></div>
+        <div class="map-overlay">
+          <div id="map-lat">LAT: 45.8150° N</div>
+          <div id="map-lon">LON: 15.9819° E</div>
+          <div id="map-spd">SPD: -- km/h</div>
+        </div>
+      </div>
+      <div class="trip-stats">
+        <div class="trip-stat"><div class="trip-stat-val" id="stat-dist">0.0</div><div class="trip-stat-lbl">km</div></div>
+        <div class="trip-stat"><div class="trip-stat-val" id="stat-max">0</div><div class="trip-stat-lbl">max km/h</div></div>
+        <div class="trip-stat"><div class="trip-stat-val" id="stat-time">00:00</div><div class="trip-stat-lbl">trajanje</div></div>
+      </div>
+      <div class="graph-card">
+        <div class="graph-header">
+          <div>
+            <div class="graph-title-txt">Brzina — ruta</div>
+          </div>
+          <div>
+            <div class="graph-cur-val" id="cur-speed-map" style="color:#00FF88">--</div>
+            <div class="graph-cur-unit">km/h</div>
+          </div>
+          <span class="graph-live">LIVE</span>
+        </div>
+        <canvas class="graph-canvas" id="speed-graph"></canvas>
+        <div class="graph-minmax"><span id="min-speed-map">min: --</span><span id="max-speed-map">max: --</span></div>
+      </div>
+    </div>
+
+    <!-- GRAFOVI -->
+    <div class="page" id="page-grafovi">
+
+      <div class="graph-card">
+        <div class="graph-header">
+          <div><div class="graph-title-txt">RPM</div></div>
+          <div><div class="graph-cur-val" id="cur-rpm" style="color:#00C8FF">--</div><div class="graph-cur-unit">RPM</div></div>
+          <span class="graph-live">LIVE</span>
+        </div>
+        <canvas class="graph-canvas" id="graph-rpm"></canvas>
+        <div class="graph-minmax"><span id="min-rpm">min: --</span><span id="max-rpm">max: --</span></div>
+      </div>
+
+      <div class="graph-card">
+        <div class="graph-header">
+          <div><div class="graph-title-txt">Temp. motora</div></div>
+          <div><div class="graph-cur-val" id="cur-temp" style="color:#FF6B00">--</div><div class="graph-cur-unit">°C</div></div>
+          <span class="graph-live">LIVE</span>
+        </div>
+        <canvas class="graph-canvas" id="graph-temp"></canvas>
+        <div class="graph-minmax"><span id="min-temp">min: --</span><span id="max-temp">max: --</span></div>
+      </div>
+
+      <div class="graph-card">
+        <div class="graph-header">
+          <div><div class="graph-title-txt">Temp. vode</div></div>
+          <div><div class="graph-cur-val" id="cur-water" style="color:#00BFFF">--</div><div class="graph-cur-unit">°C</div></div>
+          <span class="graph-live">LIVE</span>
+        </div>
+        <canvas class="graph-canvas" id="graph-water"></canvas>
+        <div class="graph-minmax"><span id="min-water">min: --</span><span id="max-water">max: --</span></div>
+      </div>
+
+      <div class="graph-card">
+        <div class="graph-header">
+          <div><div class="graph-title-txt">Tlak ulja</div></div>
+          <div><div class="graph-cur-val" id="cur-oil" style="color:#FF9F43">--</div><div class="graph-cur-unit">bar</div></div>
+          <span class="graph-live">LIVE</span>
+        </div>
+        <canvas class="graph-canvas" id="graph-oil"></canvas>
+        <div class="graph-minmax"><span id="min-oil">min: --</span><span id="max-oil">max: --</span></div>
+      </div>
+
+      <div class="graph-card">
+        <div class="graph-header">
+          <div><div class="graph-title-txt">Napon baterije</div></div>
+          <div><div class="graph-cur-val" id="cur-volt" style="color:#FFD700">--</div><div class="graph-cur-unit">V</div></div>
+          <span class="graph-live">LIVE</span>
+        </div>
+        <canvas class="graph-canvas" id="graph-volt"></canvas>
+        <div class="graph-minmax"><span id="min-volt">min: --</span><span id="max-volt">max: --</span></div>
+      </div>
+
+      <div class="graph-card">
+        <div class="graph-header">
+          <div><div class="graph-title-txt">Pritisak goriva</div></div>
+          <div><div class="graph-cur-val" id="cur-fuel" style="color:#A78BFA">--</div><div class="graph-cur-unit">bar</div></div>
+          <span class="graph-live">LIVE</span>
+        </div>
+        <canvas class="graph-canvas" id="graph-fuel"></canvas>
+        <div class="graph-minmax"><span id="min-fuel">min: --</span><span id="max-fuel">max: --</span></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STANJE ───────────────────────────────────────────────
+let spojen = false, simInterval = null;
+let rpmBase=3200, tempBase=68, fuelBase=3.5, waterBase=22, oilBase=4.0;
+let maxSpeed=0, startTime=null, totalDist=0, lastSpeed=0;
+let googleMap=null, rutaPolyline=null, markerPos=null, rutaTocke=[];
+
+const HISTORY={rpm:[],temp:[],volt:[],fuel:[],speed:[],water:[],oil:[]};
+const MAX_HIST=60;
+
+const GRESKE=[
+  {kod:'P0336',naziv:'Senzor položaja radilice',opis:'Signal van raspona — provjeri kablove senzora i zazor.',sev:'visok',boja:'#FF2244',time:'2024-05-21 14:32'},
+  {kod:'P0562',naziv:'Nizak napon napajanja',opis:'Napon sustava ispod 10V — provjeri bateriju i alternator.',sev:'srednji',boja:'#FFD700',time:'2024-05-20 09:15'},
+  {kod:'U0100',naziv:'CAN bus komunikacija — ECM',opis:'Izgubljena komunikacija s modulom motora. Povremeno.',sev:'info',boja:'#00C8FF',time:'2024-05-19 17:44'},
+];
+
+// ── TABS ─────────────────────────────────────────────────
+function promijeniTab(id,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('aktivan'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('aktivan'));
+  el.classList.add('aktivan');
+  document.getElementById('page-'+id).classList.add('aktivan');
+  if(id==='mapa'){setTimeout(initMapu,80);}
+  if(id==='grafovi'){setTimeout(crtajSveGrafove,50);}
+}
+
+// ── GOOGLE MAPS ──────────────────────────────────────────
+// Simulirane GPS koordinate (Jarun, Zagreb)
+const SIM_LAT=45.7820, SIM_LON=15.9250;
+let simLat=SIM_LAT, simLon=SIM_LON;
+
+function initMapu(){
+  if(googleMap) return;
+  if(typeof google==='undefined'){
+    // Fallback canvas mapa ako nema Google Maps API
+    crtajFallbackMapu();
+    return;
+  }
+  googleMap = new google.maps.Map(document.getElementById('google-map'),{
+    center:{lat:simLat,lng:simLon},
+    zoom:15,
+    mapTypeId:'satellite',
+    disableDefaultUI:true,
+    styles:[{featureType:'all',elementType:'labels',stylers:[{visibility:'off'}]}]
+  });
+  rutaPolyline = new google.maps.Polyline({
+    path:[],strokeColor:'#00C8FF',strokeOpacity:0.9,strokeWeight:3,map:googleMap
+  });
+  markerPos = new google.maps.Marker({
+    position:{lat:simLat,lng:simLon},
+    map:googleMap,
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:8,fillColor:'#FF6B00',fillOpacity:1,strokeColor:'#fff',strokeWeight:2}
+  });
+}
+
+function crtajFallbackMapu(){
+  // Canvas fallback — stil vode + ruta
+  const wrap = document.getElementById('google-map');
+  wrap.innerHTML='<canvas id="map-canvas" style="width:100%;height:100%;display:block;"></canvas>';
+  const canvas=document.getElementById('map-canvas');
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=canvas.offsetWidth*dpr; canvas.height=canvas.offsetHeight*dpr;
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  const W=canvas.offsetWidth, H=canvas.offsetHeight;
+  const g=ctx.createLinearGradient(0,0,W,H);
+  g.addColorStop(0,'#0A2040'); g.addColorStop(1,'#050A15');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#1A3A5C22'; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  if(rutaTocke.length>1){
+    ctx.strokeStyle='#00C8FF44'; ctx.lineWidth=8; ctx.lineCap='round';
+    ctx.beginPath();
+    rutaTocke.forEach((p,i)=>i===0?ctx.moveTo(p.px,p.py):ctx.lineTo(p.px,p.py));
+    ctx.stroke();
+    ctx.strokeStyle='#00C8FF'; ctx.lineWidth=2.5;
+    ctx.shadowColor='#00C8FF'; ctx.shadowBlur=8;
+    ctx.beginPath();
+    rutaTocke.forEach((p,i)=>i===0?ctx.moveTo(p.px,p.py):ctx.lineTo(p.px,p.py));
+    ctx.stroke(); ctx.shadowBlur=0;
+  }
+  // Trenutna pozicija
+  const cx=W*0.5+Math.sin(Date.now()/3000)*W*0.15;
+  const cy=H*0.5+Math.cos(Date.now()/4000)*H*0.2;
+  ctx.fillStyle='#FF6B00'; ctx.shadowColor='#FF6B00'; ctx.shadowBlur=16;
+  ctx.beginPath(); ctx.arc(cx,cy,9,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0; ctx.fillStyle='#050A15';
+  ctx.beginPath(); ctx.arc(cx,cy,5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#4A7A9B'; ctx.font='10px Share Tech Mono'; ctx.fillText('Google Maps API potreban za pravu kartu',10,H-12);
+}
+
+function azurirajMapuPoziciju(speed){
+  // Simuliraj kretanje
+  simLat += (Math.random()-0.5)*0.0002;
+  simLon += 0.0001 + Math.random()*0.0001;
+
+  document.getElementById('map-lat').textContent='LAT: '+simLat.toFixed(4)+'° N';
+  document.getElementById('map-lon').textContent='LON: '+simLon.toFixed(4)+'° E';
+  document.getElementById('map-spd').textContent='SPD: '+speed+' km/h';
+
+  if(googleMap && markerPos){
+    const pos={lat:simLat,lng:simLon};
+    markerPos.setPosition(pos);
+    const path=rutaPolyline.getPath();
+    path.push(new google.maps.LatLng(simLat,simLon));
+    googleMap.panTo(pos);
+  } else {
+    // Spremi za canvas
+    const wrap=document.getElementById('google-map');
+    rutaTocke.push({lat:simLat,lon:simLon,px:wrap.offsetWidth*(0.3+rutaTocke.length*0.015),py:wrap.offsetHeight*(0.7-rutaTocke.length*0.01)});
+    if(document.getElementById('page-mapa').classList.contains('aktivan')) crtajFallbackMapu();
+  }
+}
+
+// ── KONEKCIJA ────────────────────────────────────────────
+function toggleKonekcija(){
+  spojen=!spojen;
+  const btn=document.getElementById('conn-btn');
+  const dot=document.getElementById('status-dot');
+  const txt=document.getElementById('conn-status-text');
+  if(spojen){
+    btn.textContent='ODSPOJI'; btn.classList.add('disconnect');
+    dot.classList.remove('off'); txt.textContent='MPI-3 · Aktivan';
+    startTime=Date.now(); maxSpeed=0; totalDist=0;
+    pokreniSimulaciju();
+  } else {
+    btn.textContent='SPOJI'; btn.classList.remove('disconnect');
+    dot.classList.add('off'); txt.textContent='Nije spojeno';
+    stopSimulaciju(); resetVrijednosti();
+  }
+}
+
+function resetVrijednosti(){
+  ['rpm','temp','volt','speed','fuel','exhaust','water','oil'].forEach(k=>{
+    const el=document.getElementById('val-'+k); if(el) el.textContent='--';
+    const bar=document.getElementById('bar-'+k); if(bar) bar.style.width='0%';
+  });
+}
+
+// ── SIMULACIJA ───────────────────────────────────────────
+function pokreniSimulaciju(){if(simInterval)clearInterval(simInterval);simInterval=setInterval(tikTak,500);}
+function stopSimulaciju(){if(simInterval){clearInterval(simInterval);simInterval=null;}}
+
+function tikTak(){
+  rpmBase+=(Math.random()-0.5)*400; rpmBase=Math.max(800,Math.min(8200,rpmBase));
+  tempBase+=(Math.random()-0.48)*0.8; tempBase=Math.max(55,Math.min(102,tempBase));
+  fuelBase+=(Math.random()-0.5)*0.15; fuelBase=Math.max(2.8,Math.min(4.2,fuelBase));
+  waterBase+=(Math.random()-0.5)*0.3; waterBase=Math.max(18,Math.min(35,waterBase));
+  oilBase+=(Math.random()-0.5)*0.1; oilBase=Math.max(3.2,Math.min(5.5,oilBase));
+
+  const rpm=Math.round(rpmBase);
+  const temp=Math.round(tempBase);
+  const volt=(12.2+Math.random()*0.8).toFixed(1);
+  const speed=Math.max(0,Math.round(rpm/85+(Math.random()-0.5)*5));
+  const fuel=fuelBase.toFixed(1);
+  const exh=Math.round(280+(rpm/8500)*350+(Math.random()-0.5)*30);
+  const water=waterBase.toFixed(1);
+  const oil=oilBase.toFixed(1);
+
+  // Dashboard gauges
+  azurirajGauge('rpm',rpm,rpm/8500*100);
+  azurirajGauge('temp',temp,temp/105*100);
+  azurirajGauge('volt',volt,(parseFloat(volt)-10)/5*100);
+  azurirajGauge('speed',speed,speed/130*100);
+  azurirajGauge('fuel',fuel,(parseFloat(fuel)-2)/3*100);
+  azurirajGauge('exhaust',exh,exh/650*100);
+  azurirajGauge('water',water,parseFloat(water)/40*100);
+  azurirajGauge('oil',oil,(parseFloat(oil)-2)/5*100);
+
+  // Historija
+  pushHist('rpm',rpm); pushHist('temp',temp); pushHist('volt',parseFloat(volt));
+  pushHist('fuel',parseFloat(fuel)); pushHist('speed',speed);
+  pushHist('water',parseFloat(water)); pushHist('oil',parseFloat(oil));
+
+  // Trip stats
+  if(speed>maxSpeed) maxSpeed=speed;
+  totalDist+=(lastSpeed/3600)*0.5/1000; lastSpeed=speed;
+  const elapsed=Math.floor((Date.now()-startTime)/1000);
+  const mm=String(Math.floor(elapsed/60)).padStart(2,'0');
+  const ss=String(elapsed%60).padStart(2,'0');
+  const distEl=document.getElementById('stat-dist'); if(distEl) distEl.textContent=totalDist.toFixed(1);
+  const maxEl=document.getElementById('stat-max'); if(maxEl) maxEl.textContent=maxSpeed;
+  const timeEl=document.getElementById('stat-time'); if(timeEl) timeEl.textContent=mm+':'+ss;
+
+  // GPS
+  azurirajMapuPoziciju(speed);
+
+  // Live grafovi
+  if(document.getElementById('page-grafovi').classList.contains('aktivan')) crtajSveGrafove();
+  if(document.getElementById('page-mapa').classList.contains('aktivan')) crtajSpeedGraph();
+}
+
+function azurirajGauge(k,v,p){
+  const el=document.getElementById('val-'+k); if(el) el.textContent=v;
+  const bar=document.getElementById('bar-'+k); if(bar) bar.style.width=Math.min(100,Math.max(0,p))+'%';
+}
+function pushHist(k,v){HISTORY[k].push(v);if(HISTORY[k].length>MAX_HIST)HISTORY[k].shift();}
+
+// ── GRAFOVI ──────────────────────────────────────────────
+function crtajLiniju(canvasId,data,boja,min,max,curId,minId,maxId,decimals){
+  const canvas=document.getElementById(canvasId); if(!canvas) return;
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=canvas.offsetWidth*dpr; canvas.height=canvas.offsetHeight*dpr;
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  const W=canvas.offsetWidth, H=canvas.offsetHeight;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='#1A3A5C44'; ctx.lineWidth=1;
+  for(let i=0;i<=3;i++){const y=(H/3)*i;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  if(data.length<2) return;
+  const pad=4, xStep=(W-pad*2)/(MAX_HIST-1);
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,boja+'55'); grad.addColorStop(1,boja+'00');
+  ctx.fillStyle=grad; ctx.beginPath();
+  data.forEach((v,i)=>{const x=pad+(MAX_HIST-data.length+i)*xStep;const y=H-pad-((v-min)/(max-min))*(H-pad*2);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.lineTo(pad+(MAX_HIST-1)*xStep,H);ctx.lineTo(pad,H);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=boja;ctx.lineWidth=2;ctx.shadowColor=boja;ctx.shadowBlur=6;
+  ctx.beginPath();
+  data.forEach((v,i)=>{const x=pad+(MAX_HIST-data.length+i)*xStep;const y=H-pad-((v-min)/(max-min))*(H-pad*2);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.stroke();ctx.shadowBlur=0;
+  if(data.length>0){
+    const cur=data[data.length-1];
+    const x=pad+(MAX_HIST-1)*xStep;
+    const y=H-pad-((cur-min)/(max-min))*(H-pad*2);
+    ctx.fillStyle=boja;ctx.shadowColor=boja;ctx.shadowBlur=8;
+    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+    // Ažuriraj live broj
+    const d=decimals||0;
+    if(curId){const el=document.getElementById(curId);if(el)el.textContent=cur.toFixed(d);}
+    if(minId){const mn=Math.min(...data);const el=document.getElementById(minId);if(el)el.textContent='min: '+mn.toFixed(d);}
+    if(maxId){const mx=Math.max(...data);const el=document.getElementById(maxId);if(el)el.textContent='max: '+mx.toFixed(d);}
+  }
+}
+
+function crtajSveGrafove(){
+  crtajLiniju('graph-rpm', HISTORY.rpm, '#00C8FF',0,8500,'cur-rpm','min-rpm','max-rpm',0);
+  crtajLiniju('graph-temp',HISTORY.temp,'#FF6B00',40,110,'cur-temp','min-temp','max-temp',0);
+  crtajLiniju('graph-water',HISTORY.water,'#00BFFF',15,40,'cur-water','min-water','max-water',1);
+  crtajLiniju('graph-oil', HISTORY.oil, '#FF9F43',2,6,'cur-oil','min-oil','max-oil',1);
+  crtajLiniju('graph-volt',HISTORY.volt,'#FFD700',10,15,'cur-volt','min-volt','max-volt',1);
+  crtajLiniju('graph-fuel',HISTORY.fuel,'#A78BFA',2,5,'cur-fuel','min-fuel','max-fuel',1);
+}
+
+function crtajSpeedGraph(){
+  crtajLiniju('speed-graph',HISTORY.speed,'#00FF88',0,130,'cur-speed-map','min-speed-map','max-speed-map',0);
+}
+
+// ── FAULT LISTA ──────────────────────────────────────────
+function renderGreske(){
+  const lista=document.getElementById('fault-lista');
+  const count=document.getElementById('fault-count');
+  count.textContent=GRESKE.length+' DTC';
+  lista.innerHTML=GRESKE.map(g=>`
+    <div class="fault-card" style="--f-color:${g.boja}">
+      <div class="fault-top"><span class="fault-code">${g.kod}</span><span class="fault-sev ${g.sev}">${g.sev.toUpperCase()}</span></div>
+      <div class="fault-naziv">${g.naziv}</div>
+      <div class="fault-opis">${g.opis}</div>
+      <div class="fault-time">Zabilježeno: ${g.time}</div>
+    </div>`).join('');
+}
+
+// ── INIT ─────────────────────────────────────────────────
+renderGreske();
+</script>
+
+<!-- Google Maps API — zamijeni YOUR_API_KEY s pravim ključem -->
+<script>
+function initGoogleMaps(){
+  // Google Maps je učitan — inicijaliziraj mapu
+  if(document.getElementById('page-mapa').classList.contains('aktivan')) initMapu();
+}
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initGoogleMaps" async defer
+  onerror="console.log('Google Maps nije dostupan — koristimo fallback')"></script>
+
+</body>
+</html>
